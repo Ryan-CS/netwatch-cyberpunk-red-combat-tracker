@@ -15,6 +15,7 @@
       --black-color: #050a0e;
       --blue-color: #00f0ff;
       --white-color: #fafafa;
+      --sticky-stack-height: 104px;
     }
     body {
       font-family: 'Tomorrow', sans-serif;
@@ -106,6 +107,11 @@
     th {
       background-color: var(--yellow-color);
       color: var(--black-color);
+    }
+    thead th {
+      position: sticky;
+      top: var(--sticky-stack-height);
+      z-index: 9;
     }
     th.armor { display: none; }
     th.critical-injuries, td.critical-injuries {
@@ -464,24 +470,88 @@
       font-size: 0.95rem;
       display: none;
     }
-    .damage-mini-grid {
-      display: grid;
-      grid-template-columns: 1.25fr 1fr;
-      gap: 12px;
-      align-items: start;
-    }
-    .damage-mini-card {
+    .damage-apply-grid {
       border: 1px solid rgba(84, 193, 230, 0.5);
       border-radius: 8px;
-      padding: 10px 12px;
-      background: #0d0f15;
+      overflow: hidden;
     }
-    .damage-mini-card h3 {
-      margin: 0 0 8px 0;
-      font-size: 0.95rem;
-      color: var(--yellow-color);
+    .damage-apply-header,
+    .damage-apply-body {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr 0.9fr 1.3fr;
+    }
+    .damage-apply-header {
+      background: var(--yellow-color);
+      color: var(--black-color);
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.04em;
+      font-size: 0.9rem;
+    }
+    .damage-apply-header div {
+      padding: 8px 12px;
+      border-right: 1px solid rgba(0, 0, 0, 0.2);
+    }
+    .damage-apply-header div:last-child { border-right: none; }
+    .damage-pane {
+      padding: 12px;
+      min-height: 140px;
+      border-right: 1px solid rgba(84, 193, 230, 0.25);
+    }
+    .damage-pane:last-child { border-right: none; }
+    .damage-pane--hp {
+      background: #7b7f16;
+      color: var(--black-color);
+    }
+    .damage-pane--damage { background: #3a0f17; }
+    .damage-pane--effects,
+    .damage-pane--critical { background: #0d0f15; }
+    .damage-pane--hp .form-group label { color: var(--yellow-color); }
+    .damage-hp-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      align-items: end;
+    }
+    .damage-hp-grid .damage-hp-stack {
+      grid-column: 1 / -1;
+      justify-self: start;
+    }
+    .damage-hp-grid .form-group input {
+      width: 4.5rem;
+    }
+    .damage-dmg-input {
+      width: 6rem;
+      margin-bottom: 8px;
+    }
+    .damage-dmg-buttons {
+      display: grid;
+      gap: 6px;
+      width: 6.5rem;
+    }
+    .damage-effects-list {
+      display: grid;
+      gap: 8px;
+      font-size: 0.85rem;
+    }
+    .damage-effects-list label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .damage-critical-controls {
+      display: grid;
+      gap: 8px;
+      justify-items: start;
+    }
+    .damage-critical-controls select {
+      max-width: 220px;
+    }
+    .damage-critical-tags {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
     }
 
   
@@ -1613,6 +1683,16 @@ newSession: () => {
           document.getElementById("closeDamageQueue")?.addEventListener("click", closeDamageQueueModal);
           document.getElementById("damageQueueCloseBtn")?.addEventListener("click", closeDamageQueueModal);
           document.getElementById("damageQueueFilter")?.addEventListener("input", renderDamageQueueList);
+          document.getElementById("damageQueueFilter")?.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter") return;
+            const queueOpen = isVisibleFlex(document.getElementById("damageQueuePopup"));
+            if (!queueOpen) return;
+            const list = document.getElementById("damageQueueList");
+            const firstBtn = list?.querySelector(".damage-list-btn");
+            if (!firstBtn) return;
+            event.preventDefault();
+            firstBtn.click();
+          });
 
           document.getElementById("closeDamageApply")?.addEventListener("click", closeDamageApplyModal);
 
@@ -1817,64 +1897,64 @@ newSession: () => {
             <h2 style="margin:0;">${name}</h2>
           </div>
 
-          <div class="damage-mini-grid">
-            <div class="damage-mini-card">
-              <h3>HP</h3>
-              <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
-                <div class="form-group">
-                  <input type="number" id="modalCurrentHp" style="width: 4.5rem;" value="${char.hp}">
-                  <label for="modalCurrentHp">current_</label>
-                </div>
-                <div class="form-group">
-                  <input type="number" id="modalTotalHp" style="width: 4.5rem; background: var(--yellow-color); color: var(--black-color);" value="${char.total}" disabled>
-                  <label for="modalTotalHp">total_</label>
-                </div>
-                <div class="form-group">
-                  <input type="number" id="modalHeadSp" style="width: 4.5rem;" value="${char.spHead}">
-                  <label for="modalHeadSp">Head SP</label>
-                </div>
-                <div class="form-group">
-                  <input type="number" id="modalBodySp" style="width: 4.5rem;" value="${char.spBody}">
-                  <label for="modalBodySp">Body SP</label>
-                </div>
-              </div>
+          <div class="damage-apply-grid">
+            <div class="damage-apply-header">
+              <div>HP</div>
+              <div>Damage</div>
+              <div>Effects</div>
+              <div>Critical Injuries</div>
             </div>
-
-            <div class="damage-mini-card">
-              <h3>DAMAGE</h3>
-              <input type="number" id="modalDamageValue" value="" style="width: 6rem; margin-bottom: 8px;">
-              <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <button type="button" class="btn apply-btn" id="modalDamageFull">FULL</button>
-                <button type="button" class="btn apply-btn" id="modalDamageHalf">HALF</button>
-                <button type="button" class="btn apply-btn" id="modalDamageIgnore">IGNORE</button>
+            <div class="damage-apply-body">
+              <div class="damage-pane damage-pane--hp">
+                <div class="damage-hp-grid">
+                  <div class="form-group">
+                    <input type="number" id="modalCurrentHp" value="${char.hp}">
+                    <label for="modalCurrentHp">current_</label>
+                  </div>
+                  <div class="form-group">
+                    <input type="number" id="modalTotalHp" style="background: var(--yellow-color); color: var(--black-color);" value="${char.total}" disabled>
+                    <label for="modalTotalHp">total_</label>
+                  </div>
+                  <div class="form-group damage-hp-stack">
+                    <input type="number" id="modalHeadSp" value="${char.spHead}">
+                    <label for="modalHeadSp">Head</label>
+                  </div>
+                  <div class="form-group damage-hp-stack">
+                    <input type="number" id="modalBodySp" value="${char.spBody}">
+                    <label for="modalBodySp">Body</label>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div class="damage-mini-card">
-              <h3>EFFECTS</h3>
-              <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                <label style="display:flex; flex-direction:column; gap:4px; font-size:0.85rem;">
-                  <span style="color:var(--yellow-color);">Headshot</span>
-                  <input type="checkbox" id="modalHeadshot" ${char.headshot ? "checked" : ""}>
-                </label>
-                <label style="display:flex; flex-direction:column; gap:4px; font-size:0.85rem;">
-                  <span style="color:var(--yellow-color);">Critical</span>
-                  <input type="checkbox" id="modalCritical" ${char.critical ? "checked" : ""}>
-                </label>
-                <label style="display:flex; flex-direction:column; gap:4px; font-size:0.85rem;">
-                  <span style="color:var(--yellow-color);">AP</span>
-                  <input type="checkbox" id="modalAP" ${char.armorPiercing ? "checked" : ""}>
-                </label>
+              <div class="damage-pane damage-pane--damage">
+                <input type="number" id="modalDamageValue" value="" class="damage-dmg-input">
+                <div class="damage-dmg-buttons">
+                  <button type="button" class="btn apply-btn" id="modalDamageFull">FULL</button>
+                  <button type="button" class="btn apply-btn" id="modalDamageHalf">HALF</button>
+                  <button type="button" class="btn apply-btn" id="modalDamageIgnore">IGNORE</button>
+                </div>
               </div>
-            </div>
 
-            <div class="damage-mini-card">
-              <h3>CRITICAL INJURY</h3>
-              <div id="modalInjuryTags" style="margin-bottom: 8px; display:flex; flex-wrap:wrap; gap:6px;">
-                ${injuryTags || `<span style="opacity:0.85;">None</span>`}
+              <div class="damage-pane damage-pane--effects">
+                <div class="damage-effects-list">
+                  <label>
+                    <span style="color:var(--yellow-color);">Headshot</span>
+                    <input type="checkbox" id="modalHeadshot" ${char.headshot ? "checked" : ""}>
+                  </label>
+                  <label>
+                    <span style="color:var(--yellow-color);">Critical</span>
+                    <input type="checkbox" id="modalCritical" ${char.critical ? "checked" : ""}>
+                  </label>
+                  <label>
+                    <span style="color:var(--yellow-color);">AP</span>
+                    <input type="checkbox" id="modalAP" ${char.armorPiercing ? "checked" : ""}>
+                  </label>
+                </div>
               </div>
-              <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                <select id="modalCriticalSelect">
+
+              <div class="damage-pane damage-pane--critical">
+                <div class="damage-critical-controls">
+                  <select id="modalCriticalSelect">
                   <optgroup label="Body">
                     <option value="Dismembered Arm">Dismembered Arm</option>
                     <option value="Dismembered Hand">Dismembered Hand</option>
@@ -1901,7 +1981,11 @@ newSession: () => {
                     <option value="Lost Ear">Lost Ear</option>
                   </optgroup>
                 </select>
-                <button type="button" class="btn" id="modalAddInjury">Add Injury</button>
+                  <button type="button" class="btn" id="modalAddInjury">Add Injury</button>
+                </div>
+                <div id="modalInjuryTags" class="damage-critical-tags">
+                  ${injuryTags || `<span style="opacity:0.85;">None</span>`}
+                </div>
               </div>
             </div>
           </div>
